@@ -45,6 +45,37 @@ The modern, dependency-free Datagrid for Laravel. A powerful Grid.js wrapper wit
 composer require amjadiqbal/laravel-gridjs
 ```
 
+### Installation Wizard (Interactive)
+- Run the installer to set defaults and optionally publish assets:
+
+```bash
+php artisan gridjs:install
+```
+
+- Prompts:
+  - Route prefix (default: gridjs)
+  - Use CDN or local assets
+  - Publish local assets and path
+  - Open contact page in browser
+
+- Non-interactive usage:
+
+```bash
+php artisan gridjs:install \
+  --prefix=datagrid \
+  --cdn=false \
+  --publish-assets=true \
+  --assets-path=public/vendor/gridjs \
+  --open-link=false \
+  --contact-url=https://github.com/amjadiqbal/laravel-gridjs/issues
+```
+
+### Publish Assets Locally
+
+```bash
+php artisan gridjs:publish-assets --path=public/vendor/gridjs
+```
+
 ## Quick Start
 
 ```php
@@ -220,6 +251,12 @@ return ['prefix' => 'datagrid'];
 ```bash
 vendor/bin/pest
 ```
+
+- Installer:
+  - The installer prints a general contact message:
+    - “If you are facing any issue or need development help, contact me: https://github.com/amjadiqbal/laravel-gridjs/issues”
+  - You can pass a custom contact URL with `--contact-url`
+  - Opening the contact page is optional via `--open-link` or prompt
 
 - Local Assets:
   - Banner stored in `assets/banner.svg` and included in README
