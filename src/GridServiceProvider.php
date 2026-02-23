@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use AmjadIqbal\GridJS\Http\Controllers\GridDataController;
 use AmjadIqbal\GridJS\Console\PublishAssetsCommand;
+use AmjadIqbal\GridJS\Console\InstallCommand;
 
 class GridServiceProvider extends ServiceProvider
 {
@@ -22,6 +23,7 @@ class GridServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 PublishAssetsCommand::class,
+                InstallCommand::class,
             ]);
             $this->publishes([
                 __DIR__ . '/../config/gridjs.php' => config_path('gridjs.php'),
