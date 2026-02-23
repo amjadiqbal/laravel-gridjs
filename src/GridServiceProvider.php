@@ -5,6 +5,7 @@ namespace AmjadIqbal\GridJS;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use AmjadIqbal\GridJS\Http\Controllers\GridDataController;
+use AmjadIqbal\GridJS\Console\PublishAssetsCommand;
 
 class GridServiceProvider extends ServiceProvider
 {
@@ -18,6 +19,14 @@ class GridServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                PublishAssetsCommand::class,
+            ]);
+            $this->publishes([
+                __DIR__ . '/../config/gridjs.php' => config_path('gridjs.php'),
+            ], 'gridjs-config');
+        }
         Route::macro('gridjsRoutes', function () {
             $prefix = config('gridjs.prefix', 'gridjs');
             Route::prefix($prefix)->group(function () {

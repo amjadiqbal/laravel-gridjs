@@ -113,6 +113,59 @@ echo Grid::fromQuery(User::query())
     ->render();
 ```
 
+### Built-in Format Options
+
+```php
+// Date
+echo Grid::fromQuery(User::query())
+    ->columns([
+        ['field' => 'created_at', 'name' => 'Joined', 'format' => ['type' => 'date', 'locale' => 'en-US']],
+    ])
+    ->render();
+
+// Currency
+echo Grid::fromQuery(User::query())
+    ->columns([
+        ['field' => 'balance', 'name' => 'Balance', 'format' => ['type' => 'currency', 'currency' => 'USD']],
+    ])
+    ->render();
+
+// Link
+echo Grid::fromQuery(User::query())
+    ->columns([
+        ['field' => 'email', 'name' => 'Email', 'format' => ['type' => 'link']],
+    ])
+    ->render();
+```
+
+### Actions Column
+
+```php
+echo Grid::fromQuery(User::query())
+    ->columns([['field' => 'id', 'name' => 'ID'], 'name', 'email'])
+    ->actions([
+        ['label' => 'View', 'baseUrl' => '/users', 'class' => 'btn btn-sm'],
+        ['label' => 'Edit', 'baseUrl' => '/users/edit', 'class' => 'btn btn-sm btn-warning'],
+    ], idIndex: 0)
+    ->render();
+```
+
+### Asset Options
+- Configurable CDN injection via `config/gridjs.php`:
+
+```php
+return [
+  'assets' => [
+    'cdn' => true,
+    'script' => 'https://unpkg.com/gridjs/dist/gridjs.umd.js',
+    'themes' => [
+      'mermaid' => 'https://unpkg.com/gridjs/dist/theme/mermaid.min.css',
+      'skeleton' => 'https://unpkg.com/gridjs/dist/theme/skeleton.min.css',
+    ],
+  ],
+];
+```
+
 ### Custom Route Prefix
 
 ```php
