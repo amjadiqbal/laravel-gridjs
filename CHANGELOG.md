@@ -4,7 +4,7 @@ All notable changes to `amjadiqbal/laravel-gridjs` are documented here. The form
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-10-21
 
 First tagged release, rebuilt against the real Grid.js 6.2.0 API. The untagged `dev-main` code it
 replaces could not be installed with a plain `composer require`, did not work on Laravel 12 or 13, and
