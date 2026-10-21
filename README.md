@@ -189,8 +189,10 @@ Every grid fetches from `GET /gridjs/data`. Add `auth` (or any middleware) to ke
 Each grid's token is encrypted with your `APP_KEY` and is only valid:
 
 - **for the person it was rendered for:** the signed-in user, or for guests the browser session. A token
-  copied to another account or browser gets a 403. This needs the session (the `web` middleware); for a
-  stateless setup set `bind_tokens` to `false`.
+  copied to another account or browser gets a 403. This needs the session (the `web` middleware). A grid
+  rendered with neither a signed-in user nor a session throws a `RuntimeException` rather than issue a
+  token anyone could reuse. To allow that anyway, set `allow_unbound_tokens` to `true` (or `bind_tokens`
+  to `false` to turn binding off entirely); those tokens work for anyone holding the URL until they expire.
 - **for `token_lifetime` minutes** (720 by default). After that the grid shows an error until the page is
   reloaded.
 
@@ -218,6 +220,7 @@ php artisan vendor:publish --tag=gridjs-config
 | `prefix` | `gridjs` | URL prefix of the data endpoint (`GRIDJS_PREFIX`) |
 | `middleware` | `['web']` | Middleware on the data endpoint |
 | `bind_tokens` | `true` | Bind tokens to the user (or guest session) that rendered them |
+| `allow_unbound_tokens` | `false` | Issue unbound tokens when there's no user or session (else throw) |
 | `guard` | `null` | Auth guard used for binding (`null` = default) |
 | `token_lifetime` | `720` | Minutes a rendered grid's token stays valid |
 | `per_page` | `10` | Page size for `pagination()` without a number |

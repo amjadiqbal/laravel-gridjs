@@ -21,6 +21,11 @@ return [
     */
     'bind_tokens' => true,
 
+    // With binding on, a grid rendered with neither a signed-in user nor a session (no 'web'
+    // middleware) throws instead of issuing a token anyone could replay. Set this to true to issue
+    // unbound tokens there instead (they still expire).
+    'allow_unbound_tokens' => false,
+
     'guard' => null,
 
     'token_lifetime' => 720, // minutes

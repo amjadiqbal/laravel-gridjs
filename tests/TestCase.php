@@ -23,6 +23,16 @@ class TestCase extends OrchestraTestCase
         ]);
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Grids are rendered inside 'web' routes, which always have a session.
+        $session = $this->app['session']->driver();
+        $session->start();
+        $this->app['request']->setLaravelSession($session);
+    }
+
     protected function defineDatabaseMigrations()
     {
         $this->loadMigrationsFrom(__DIR__.'/database/migrations');

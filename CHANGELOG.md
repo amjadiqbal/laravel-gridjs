@@ -4,6 +4,17 @@ All notable changes to `amjadiqbal/laravel-gridjs` are documented here. The form
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - Unreleased
+
+### Security
+
+- Grid tokens now fail closed. With no signed-in user and no session (a grid rendered without the `web`
+  middleware), 1.0.1 silently issued an unbound token that anyone holding the URL could use until it
+  expired, and the data endpoint accepted unbound tokens. Rendering such a grid now throws a
+  `RuntimeException` explaining the fix, and unbound tokens get a 403 unless unbound tokens are allowed.
+  New config `allow_unbound_tokens` (default `false`) opts back in; `bind_tokens = false` still turns
+  binding off entirely.
+
 ## [1.0.1] - 2026-10-21
 
 ### Security

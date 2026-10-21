@@ -3,6 +3,7 @@
 use AmjadIqbal\GridJS\Facades\Grid;
 use AmjadIqbal\GridJS\Tests\Support\User;
 use AmjadIqbal\GridJS\TokenBinding;
+use Illuminate\Http\Request;
 
 beforeEach(function () {
     $this->alice = User::create(['name' => 'Alice', 'email' => 'alice@example.com']);
@@ -115,4 +116,38 @@ it('refuses to make a hidden column searchable or sortable', function () {
         ->toThrow(InvalidArgumentException::class);
     expect(fn () => Grid::fromQuery(User::query())->columns(['name', ['field' => 'email', 'hidden' => true, 'sortable' => true]])->render())
         ->toThrow(InvalidArgumentException::class);
+});
+
+function withoutSession(): void
+{
+    app()->instance('request', Request::create('/'));
+}
+
+it('refuses to issue a token with no user and no session (fail closed)', function () {
+    withoutSession();
+
+    expect(fn () => usersGrid()->token())->toThrow(RuntimeException::class, 'web');
+    expect(fn () => (string) usersGrid()->render())->toThrow(RuntimeException::class);
+});
+
+it('still binds to the user when there is no session', function () {
+    withoutSession();
+    $this->actingAs($this->alice);
+    $token = usersGrid()->token();
+
+    $this->getJson(gridUrl($token))->assertOk();
+    $this->actingAs($this->bob);
+    $this->getJson(gridUrl($token))->assertForbidden();
+});
+
+it('issues unbound tokens only when allow_unbound_tokens is on', function () {
+    withoutSession();
+    config(['gridjs.allow_unbound_tokens' => true]);
+    $token = usersGrid()->token();
+
+    $this->getJson(gridUrl($token))->assertOk();
+
+    // The same unbound token is refused once unbound tokens are no longer allowed.
+    config(['gridjs.allow_unbound_tokens' => false]);
+    $this->getJson(gridUrl($token))->assertForbidden();
 });
