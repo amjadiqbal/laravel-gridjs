@@ -235,7 +235,6 @@ tables, filters and exports designed and wired up for you, or need something thi
 ## Support
 
 - 🐛 **Bug or feature request**: [open an issue](https://github.com/amjadiqbal/laravel-gridjs/issues)
-- 💬 **Questions and community**: [join the Discord](https://discord.gg/REPLACE-WITH-INVITE)
 - 🔒 **Security issue**: please report privately via GitHub's security tab
 
 ## Need this customised, or something built?
@@ -243,7 +242,6 @@ tables, filters and exports designed and wired up for you, or need something thi
 I'm available for custom development, package integration, and technical consulting.
 
 [![Hire me on Upwork](https://img.shields.io/badge/Hire%20me-Upwork-6FDA44?style=flat-square&logo=upwork&logoColor=white)](https://www.upwork.com/freelancers/amjadkhatri)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/REPLACE-WITH-INVITE)
 
 ## More packages
 
