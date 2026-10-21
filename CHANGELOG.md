@@ -4,6 +4,24 @@ All notable changes to `amjadiqbal/laravel-gridjs` are documented here. The form
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - Unreleased
+
+### Security
+
+- Hidden columns no longer leave the server. A column marked `'hidden' => true` was sent to the browser in
+  every JSON response, only hidden from display. Its values are now left out, and hidden columns can't be
+  made searchable or sortable (search would let anyone probe their values). The only exception is the key
+  column an `actions()` column needs to build its links.
+- Grid tokens are now bound and expire. A token was valid for anyone, forever: copied from the page source
+  it could be replayed by another user or after logout. Tokens are now bound to the signed-in user (or,
+  for guests, the browser session) that rendered the grid and expire after `token_lifetime` minutes (720
+  by default). A mismatched or expired token gets a 403. New config: `bind_tokens`, `guard`,
+  `token_lifetime`.
+
+### Changed
+
+- Homepage and docs now point at https://amjad.com.pk/laravel/packages/laravel-gridjs.
+
 ## [1.0.0] - 2026-10-21
 
 First tagged release, rebuilt against the real Grid.js 6.2.0 API. The untagged `dev-main` code it

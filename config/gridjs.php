@@ -13,6 +13,19 @@ return [
     'middleware' => ['web'],
 
     /*
+    | Each grid token is bound to whoever the page was rendered for: the signed-in
+    | user (on the guard below, null = default), or for guests the current session.
+    | A token copied to another browser or account gets a 403. Binding needs the
+    | session, i.e. the 'web' middleware above; set 'bind_tokens' to false for a
+    | stateless setup. Tokens also expire: an open page older than this needs a reload.
+    */
+    'bind_tokens' => true,
+
+    'guard' => null,
+
+    'token_lifetime' => 720, // minutes
+
+    /*
     | Default page size for ->pagination() without a limit, and the cap on rows
     | a grid without pagination returns in one response.
     */

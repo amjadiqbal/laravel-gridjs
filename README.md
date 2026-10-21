@@ -89,13 +89,16 @@ php artisan gridjs:publish-assets     # copy Grid.js into public/vendor/gridjs (
     'team.name',                                             // a relation column
     ['field' => 'email', 'name' => 'E-mail', 'width' => '240px'],
     ['field' => 'full_name', 'searchable' => false, 'sortable' => false], // an accessor
-    ['field' => 'internal_ref', 'hidden' => true],
 ])
 ```
 
 Per column: `field`, `name`, `width`, `hidden`, `searchable`, `sortable`, `format` and `formatter`.
 Accessors and casts work in cells; they can't be searched or sorted in SQL, so switch those off for them.
 Relation columns are searchable (through `whereHas`) but not sortable.
+
+A column marked `'hidden' => true` never leaves the server: its values are left out of the JSON, and it
+can't be searched or sorted (a search box over it would let anyone probe its values). The one exception
+is the key column of an `actions()` column, whose value is in the action links anyway.
 
 ### Search, sort and pagination
 
@@ -141,7 +144,8 @@ Or write your own Grid.js formatter in JavaScript (it runs as-is, so never build
 ->actions([['label' => 'Show', 'url' => '/orders/{id}']], key: 'uuid') // {id} = the uuid field
 ```
 
-`{id}` is filled from the `key` field (default `id`), which is added as a hidden column if you don't show it.
+`{id}` is filled from the `key` field (default `id`). If you don't show that field it is still sent to the
+browser (it has to be, to build the links), as a hidden column.
 
 ### Look and layout
 
@@ -182,14 +186,23 @@ Every grid fetches from `GET /gridjs/data`. Add `auth` (or any middleware) to ke
 'middleware' => ['web', 'auth'],
 ```
 
-Tokens are encrypted with your `APP_KEY`, so rotating the key invalidates grids that are already open.
+Each grid's token is encrypted with your `APP_KEY` and is only valid:
+
+- **for the person it was rendered for:** the signed-in user, or for guests the browser session. A token
+  copied to another account or browser gets a 403. This needs the session (the `web` middleware); for a
+  stateless setup set `bind_tokens` to `false`.
+- **for `token_lifetime` minutes** (720 by default). After that the grid shows an error until the page is
+  reloaded.
+
+Rotating `APP_KEY` also invalidates grids that are already open.
 
 ### Testing a grid
 
 ```php
 $grid = Grid::fromQuery(Customer::query())->columns(['name'])->pagination(10);
 
-$this->getJson(route('gridjs.data', ['grid' => $grid->token(), 'page' => 2]))
+$this->actingAs($user)   // tokens are bound to the user who renders them
+    ->getJson(route('gridjs.data', ['grid' => $grid->token(), 'page' => 2]))
     ->assertOk()
     ->assertJsonPath('total', 25);
 ```
@@ -204,6 +217,9 @@ php artisan vendor:publish --tag=gridjs-config
 |---|---|---|
 | `prefix` | `gridjs` | URL prefix of the data endpoint (`GRIDJS_PREFIX`) |
 | `middleware` | `['web']` | Middleware on the data endpoint |
+| `bind_tokens` | `true` | Bind tokens to the user (or guest session) that rendered them |
+| `guard` | `null` | Auth guard used for binding (`null` = default) |
+| `token_lifetime` | `720` | Minutes a rendered grid's token stays valid |
 | `per_page` | `10` | Page size for `pagination()` without a number |
 | `max_rows` | `1000` | Cap for grids without pagination |
 | `theme` | `mermaid` | Default theme, or `null` |

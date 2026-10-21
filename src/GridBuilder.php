@@ -309,6 +309,8 @@ class GridBuilder implements Htmlable, Stringable
             'search' => array_values(array_filter(array_map(fn ($c) => $c['searchable'] ? $c['field'] : null, $columns))),
             'sort' => array_values(array_filter(array_map(fn ($c) => $c['sortable'] ? $c['field'] : null, $columns))),
             'per_page' => $this->perPage,
+            'bind' => TokenBinding::forRender(),
+            'exp' => now()->addMinutes(max(1, (int) config('gridjs.token_lifetime', 720)))->getTimestamp(),
         ];
 
         return Crypt::encryptString(json_encode($payload, JSON_THROW_ON_ERROR));
@@ -339,6 +341,24 @@ class GridBuilder implements Htmlable, Stringable
                 $key = $index;
             }
             $columns[$i]['key'] = (int) $key;
+        }
+
+        // A hidden column's value never leaves the server, unless an actions column needs it to fill {id}
+        // (that value is in the action links anyway). Hidden columns can't be searched or sorted either:
+        // a search box over a hidden column would let anyone probe its values.
+        $keys = array_column(array_filter($columns, fn (array $c) => $c['actions'] !== null), 'key');
+        foreach ($columns as $i => $c) {
+            if (! $c['hidden'] || $c['field'] === null) {
+                continue;
+            }
+            if ($c['searchable'] === true || $c['sortable'] === true) {
+                throw new InvalidArgumentException("Column [{$c['field']}] is hidden and cannot be searchable or sortable.");
+            }
+            $columns[$i]['searchable'] = false;
+            $columns[$i]['sortable'] = false;
+            if (! in_array($i, $keys, true)) {
+                $columns[$i]['field'] = null;
+            }
         }
 
         $compiled = [];

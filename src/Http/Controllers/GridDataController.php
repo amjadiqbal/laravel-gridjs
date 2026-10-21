@@ -2,6 +2,7 @@
 
 namespace AmjadIqbal\GridJS\Http\Controllers;
 
+use AmjadIqbal\GridJS\TokenBinding;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -89,7 +90,7 @@ class GridDataController extends Controller
     }
 
     /**
-     * @return array{model: class-string<Model>, connection: ?string, sql: string, bindings: list<mixed>, orders: list<array<string, string>>, order_bindings: list<mixed>, with: list<string>, fields: list<?string>, search: list<string>, sort: list<string>, per_page: ?int}
+     * @return array{model: class-string<Model>, connection: ?string, sql: string, bindings: list<mixed>, orders: list<array<string, string>>, order_bindings: list<mixed>, with: list<string>, fields: list<?string>, search: list<string>, sort: list<string>, per_page: ?int, bind: ?string, exp: int}
      */
     protected function decode(mixed $token): array
     {
@@ -106,6 +107,10 @@ class GridDataController extends Controller
                 && class_exists($grid['model']) && is_subclass_of($grid['model'], Model::class),
             403
         );
+
+        // Expired, or rendered for another user or browser session.
+        abort_unless(is_int($grid['exp'] ?? null) && $grid['exp'] >= now()->getTimestamp(), 403, 'This grid has expired. Reload the page.');
+        abort_unless(TokenBinding::matches(is_string($grid['bind'] ?? null) ? $grid['bind'] : null), 403);
 
         return $grid;
     }
