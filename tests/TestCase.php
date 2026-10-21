@@ -2,30 +2,29 @@
 
 namespace AmjadIqbal\GridJS\Tests;
 
-use Orchestra\Testbench\TestCase as BaseTestCase;
 use AmjadIqbal\GridJS\GridServiceProvider;
-use Illuminate\Database\DatabaseServiceProvider;
+use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
-class TestCase extends BaseTestCase
+class TestCase extends OrchestraTestCase
 {
     protected function getPackageProviders($app)
     {
-        return [
-            GridServiceProvider::class,
-            DatabaseServiceProvider::class,
-        ];
+        return [GridServiceProvider::class];
     }
 
-    protected function getEnvironmentSetUp($app)
+    protected function defineEnvironment($app)
     {
+        $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('k', 32)));
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
             'database' => ':memory:',
             'prefix' => '',
         ]);
+    }
 
-        $migration = require __DIR__ . '/database/migrations/0000_00_00_000000_create_users_table.php';
-        $migration->up();
+    protected function defineDatabaseMigrations()
+    {
+        $this->loadMigrationsFrom(__DIR__.'/database/migrations');
     }
 }

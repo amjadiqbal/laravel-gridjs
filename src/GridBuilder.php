@@ -2,250 +2,432 @@
 
 namespace AmjadIqbal\GridJS;
 
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Expression;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\URL;
+use InvalidArgumentException;
+use Stringable;
 
-class GridBuilder
+/**
+ * Fluent definition of one Grid.js table backed by an Eloquent query. render() prints the
+ * container and a mount call; rows come from the package's data endpoint, which receives the
+ * query, columns and allowed search/sort fields inside an encrypted token, never as plain
+ * request parameters.
+ */
+class GridBuilder implements Htmlable, Stringable
 {
-    protected ?string $modelClass = null;
+    /** @var list<array{field: ?string, name: string, sortable: ?bool, searchable: ?bool, width: ?string, hidden: bool, formatter: ?string, format: ?array<string, mixed>, actions: ?list<array<string, string>>, key: string|int|null}> */
     protected array $columns = [];
-    protected bool $sortable = false;
-    protected bool $searchable = false;
-    protected bool $resizable = false;
-    protected bool $fixedHeader = false;
-    protected ?int $paginationLimit = null;
-    protected ?string $theme = null;
-    protected ?array $customClassName = null;
-    protected static bool $assetsInjected = false;
 
-    public function __construct(Builder $query)
+    /** @var bool|list<string> */
+    protected bool|array $sortable = false;
+
+    /** @var bool|list<string> */
+    protected bool|array $searchable = false;
+
+    protected int $searchDebounce = 300;
+
+    protected ?int $perPage = null;
+
+    protected bool $resizable = false;
+
+    protected bool $fixedHeader = false;
+
+    protected ?string $height = null;
+
+    protected ?string $width = null;
+
+    protected ?string $theme;
+
+    /** @var array<string, string>|null */
+    protected ?array $className = null;
+
+    /** @var array<string, mixed>|null */
+    protected ?array $language = null;
+
+    /** @var array<string, mixed> */
+    protected array $options = [];
+
+    protected ?string $id = null;
+
+    /**
+     * @param  Builder<Model>  $query
+     */
+    public function __construct(protected Builder $query, protected GridManager $manager)
     {
-        $this->modelClass = get_class($query->getModel());
+        $this->theme = $manager->defaultTheme();
     }
 
+    /**
+     * Strings ('email', 'author.name') or arrays with 'field', 'name', 'sortable', 'searchable',
+     * 'width', 'hidden', 'formatter' (a JS function as a string) or 'format' (built-in formats).
+     *
+     * @param  array<int, string|array<string, mixed>>  $columns
+     */
     public function columns(array $columns): self
     {
-        $this->columns = $columns;
+        $this->columns = array_values(array_filter(
+            $this->columns,
+            fn (array $c) => $c['actions'] !== null
+        ));
+        $data = array_map(fn ($c) => $this->normalizeColumn($c), array_values($columns));
+        $this->columns = [...$data, ...$this->columns];
+
         return $this;
     }
 
-    public function sortable(bool $enabled = true): self
+    /**
+     * true: every plain column (not relation columns or formatter-only columns). A list limits
+     * sorting to those fields.
+     *
+     * @param  bool|list<string>  $columns
+     */
+    public function sortable(bool|array $columns = true): self
     {
-        $this->sortable = $enabled;
+        $this->sortable = $columns;
+
         return $this;
     }
 
-    public function searchable(bool $enabled = true): self
+    /**
+     * true: every data column, including relation columns like 'author.name'. A list limits
+     * searching to those fields.
+     *
+     * @param  bool|list<string>  $columns
+     */
+    public function searchable(bool|array $columns = true, ?int $debounceMs = null): self
     {
-        $this->searchable = $enabled;
+        $this->searchable = $columns;
+        if ($debounceMs !== null) {
+            $this->searchDebounce = $debounceMs;
+        }
+
+        return $this;
+    }
+
+    public function pagination(?int $limit = null): self
+    {
+        $this->perPage = max(1, $limit ?? (int) config('gridjs.per_page', 10));
+
         return $this;
     }
 
     public function resizable(bool $enabled = true): self
     {
         $this->resizable = $enabled;
+
         return $this;
     }
 
-    public function fixedHeader(bool $enabled = true): self
+    /**
+     * A fixed header needs a height for the table body to scroll in.
+     */
+    public function fixedHeader(bool $enabled = true, string $height = '400px'): self
     {
         $this->fixedHeader = $enabled;
+        $this->height ??= $enabled ? $height : null;
+
         return $this;
     }
 
-    public function pagination(int $limit): self
+    public function height(string $height): self
     {
-        $this->paginationLimit = $limit;
+        $this->height = $height;
+
         return $this;
     }
 
-    public function theme(string|array $theme): self
+    public function width(string $width): self
     {
-        if (is_string($theme)) {
-            $this->theme = $theme;
-            $this->customClassName = null;
-        } else {
-            $this->customClassName = $theme;
-            $this->theme = null;
+        $this->width = $width;
+
+        return $this;
+    }
+
+    /**
+     * 'mermaid' (Grid.js's own theme), null for unstyled, or an array of Grid.js className
+     * entries (table, thead, th, td, ...) for Tailwind or your own CSS.
+     *
+     * @param  string|array<string, string>|null  $theme
+     */
+    public function theme(string|array|null $theme): self
+    {
+        if (is_array($theme)) {
+            return $this->className($theme);
         }
+        $this->theme = $theme === '' ? null : $theme;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<string, string>  $classes
+     */
+    public function className(array $classes): self
+    {
+        $this->className = $classes;
+        $this->theme = null;
+
+        return $this;
+    }
+
+    /**
+     * Grid.js language strings, e.g. ['search' => ['placeholder' => 'Find...']].
+     *
+     * @param  array<string, mixed>  $language
+     */
+    public function language(array $language): self
+    {
+        $this->language = $language;
+
+        return $this;
+    }
+
+    /**
+     * Raw Grid.js options merged into the config (style, autoWidth, ...). Columns, server,
+     * search, sort and pagination are managed by the builder and cannot be overridden here.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public function options(array $options): self
+    {
+        $this->options = array_merge($this->options, $options);
+
+        return $this;
+    }
+
+    public function id(string $id): self
+    {
+        $this->id = $id;
+
+        return $this;
+    }
+
+    /**
+     * Adds an Actions column of links. Each button: 'label', 'url' with an {id} placeholder
+     * (or the older 'baseUrl', which appends /{id}), optional 'class' and 'target'. $key is the
+     * field whose value fills {id}; it is added as a hidden column when it is not shown.
+     *
+     * @param  list<array<string, string>>  $buttons
+     */
+    public function actions(array $buttons, string|int $key = 'id', string $label = 'Actions', ?int $idIndex = null): self
+    {
+        $normalized = [];
+        foreach ($buttons as $button) {
+            $url = $button['url'] ?? (rtrim($button['baseUrl'] ?? '#', '/').'/{id}');
+            $normalized[] = array_filter([
+                'label' => (string) ($button['label'] ?? 'Action'),
+                'url' => (string) $url,
+                'class' => isset($button['class']) ? (string) $button['class'] : null,
+                'target' => isset($button['target']) ? (string) $button['target'] : null,
+            ], fn ($v) => $v !== null);
+        }
+
+        $this->columns[] = [
+            'field' => null, 'name' => $label, 'sortable' => false, 'searchable' => false, 'width' => null,
+            'hidden' => false, 'formatter' => null, 'format' => null, 'actions' => $normalized, 'key' => $idIndex ?? $key,
+        ];
+
         return $this;
     }
 
     public function render(): HtmlString
     {
-        $containerId = 'gridjs_' . Str::random(10);
-        $config = new GridConfig(
-            columns: $this->extractHeaderLabels(),
-            sortable: $this->sortable,
-            searchable: $this->searchable,
-            paginationLimit: $this->paginationLimit,
-            resizable: $this->resizable,
-            fixedHeader: $this->fixedHeader,
-            className: $this->customClassName
+        $id = $this->id ?? 'gridjs_'.Str::lower(Str::random(10));
+        [$columns, $spec, $formatters] = $this->compile();
+        $spec['url'] = route('gridjs.data', ['grid' => $this->token($columns)]);
+
+        $json = json_encode($spec, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
+        $fns = [];
+        foreach ($formatters as $index => $source) {
+            $fns[] = $index.': ('.$source.')';
+        }
+        $mount = 'LaravelGridJS.mount('.json_encode($id).', '.$json.', {'.implode(', ', $fns).'})';
+
+        return new HtmlString(
+            $this->manager->assetsFor($this->theme)
+            .'<div id="'.e($id).'" class="laravel-gridjs"></div>'
+            .'<script'.$this->manager->nonceAttribute().'>(function(m){document.readyState==="loading"?document.addEventListener("DOMContentLoaded",m):m();})(function(){'.$mount.';});</script>'
         );
-
-        $serverUrl = URL::route('gridjs.data', [
-            'model' => $this->modelClass,
-            'columns' => implode(',', $this->extractServerColumns()),
-        ], false);
-
-        $cssLinks = '';
-        $cdn = (bool) config('gridjs.assets.cdn', true);
-        $themes = (array) config('gridjs.assets.themes', []);
-        $local = (array) config('gridjs.assets.local', []);
-        if (!static::$assetsInjected) {
-            if ($cdn) {
-                if ($this->theme === 'mermaid' && isset($themes['mermaid'])) {
-                    $cssLinks .= '<link rel="stylesheet" href="' . $themes['mermaid'] . '">';
-                } elseif ($this->theme === 'skeleton' && isset($themes['skeleton'])) {
-                    $cssLinks .= '<link rel="stylesheet" href="' . $themes['skeleton'] . '">';
-                }
-            } else {
-                $publicUrl = (string) ($local['public_url'] ?? '/vendor/gridjs');
-                $localThemes = (array) ($local['themes'] ?? []);
-                if ($this->theme === 'mermaid' && isset($localThemes['mermaid'])) {
-                    $cssLinks .= '<link rel="stylesheet" href="' . rtrim($publicUrl, '/') . '/' . $localThemes['mermaid'] . '">';
-                } elseif ($this->theme === 'skeleton' && isset($localThemes['skeleton'])) {
-                    $cssLinks .= '<link rel="stylesheet" href="' . rtrim($publicUrl, '/') . '/' . $localThemes['skeleton'] . '">';
-                }
-            }
-        }
-
-        $configJson = $config->toJson();
-        $columnsJs = $this->buildColumnsJs();
-        $scriptTag = '';
-        $scriptUrl = (string) config('gridjs.assets.script', 'https://unpkg.com/gridjs/dist/gridjs.umd.js');
-        if (!static::$assetsInjected) {
-            if ($cdn && $scriptUrl) {
-                $scriptTag = '<script src="' . $scriptUrl . '"></script>';
-            } else {
-                $publicUrl = (string) ($local['public_url'] ?? '/vendor/gridjs');
-                $localScript = (string) ($local['script'] ?? 'gridjs.umd.js');
-                $scriptTag = '<script src="' . rtrim($publicUrl, '/') . '/' . $localScript . '"></script>';
-            }
-        }
-        static::$assetsInjected = true;
-        $js = <<<JS
-<div id="{$containerId}"></div>
-{$cssLinks}
-{$scriptTag}
-<script>
-const baseConfig = {$configJson};
-{$columnsJs}
-baseConfig.server = {
-  url: '{$serverUrl}',
-  method: 'GET',
-  then: data => data.data,
-  total: data => data.total
-};
-new gridjs.Grid(baseConfig).render(document.getElementById('{$containerId}'));
-</script>
-JS;
-        return new HtmlString($js);
     }
 
-    public static function resetAssetsInjection(): void
+    public function toHtml(): string
     {
-        static::$assetsInjected = false;
+        return (string) $this->render();
     }
 
-    protected function extractServerColumns(): array
+    public function __toString(): string
     {
-        $cols = [];
-        foreach ($this->columns as $col) {
-            if (is_array($col)) {
-                $cols[] = $col['field'] ?? $col['name'] ?? (string)reset($col);
-            } else {
-                $cols[] = $col;
-            }
-        }
-        return array_values(array_filter($cols, fn ($c) => is_string($c) && $c !== ''));
+        return $this->toHtml();
     }
 
-    protected function extractHeaderLabels(): array
+    /**
+     * The encrypted payload the data endpoint runs. Public so you can test a grid's data
+     * endpoint directly: $this->getJson(route('gridjs.data', ['grid' => $grid->token()])).
+     *
+     * @param  list<array<string, mixed>>|null  $columns
+     */
+    public function token(?array $columns = null): string
     {
-        $labels = [];
-        foreach ($this->columns as $col) {
-            if (is_array($col)) {
-                $labels[] = $col['name'] ?? $col['label'] ?? ($col['field'] ?? 'column');
-            } else {
-                $labels[] = $col;
+        $columns ??= $this->compile()[0];
+
+        $query = clone $this->query;
+        $base = $query->getQuery();
+        $grammar = $base->getGrammar();
+
+        $orders = [];
+        foreach ($base->orders ?? [] as $order) {
+            if (isset($order['column'])) {
+                $column = $order['column'] instanceof Expression ? (string) $order['column']->getValue($grammar) : (string) $order['column'];
+                $orders[] = $order['column'] instanceof Expression
+                    ? ['sql' => $column.' '.$order['direction']]
+                    : ['column' => Str::afterLast($column, '.'), 'direction' => $order['direction']];
+            } elseif (isset($order['sql'])) {
+                $orders[] = ['sql' => (string) $order['sql']];
             }
         }
-        return $labels;
+        $orderBindings = $base->getConnection()->prepareBindings($base->getRawBindings()['order']);
+        $query->reorder();
+
+        $eager = array_keys($query->getEagerLoads());
+        $query->setEagerLoads([]);
+
+        $payload = [
+            'v' => 1,
+            'model' => get_class($query->getModel()),
+            'connection' => $query->getModel()->getConnectionName(),
+            'sql' => $query->toSql(),
+            'bindings' => $base->getConnection()->prepareBindings($query->getBindings()),
+            'orders' => $orders,
+            'order_bindings' => $orderBindings,
+            'with' => $eager,
+            'fields' => array_map(fn ($c) => $c['field'], $columns),
+            'search' => array_values(array_filter(array_map(fn ($c) => $c['searchable'] ? $c['field'] : null, $columns))),
+            'sort' => array_values(array_filter(array_map(fn ($c) => $c['sortable'] ? $c['field'] : null, $columns))),
+            'per_page' => $this->perPage,
+        ];
+
+        return Crypt::encryptString(json_encode($payload, JSON_THROW_ON_ERROR));
     }
 
-    protected function buildColumnsJs(): string
+    /**
+     * @return array{0: list<array<string, mixed>>, 1: array<string, mixed>, 2: array<int, string>}
+     */
+    protected function compile(): array
     {
-        $needsObjects = false;
-        foreach ($this->columns as $col) {
-            if (is_array($col)) {
-                $needsObjects = true;
-                break;
-            }
+        if ($this->columns === []) {
+            throw new InvalidArgumentException('Call ->columns([...]) before rendering a grid.');
         }
-        if (!$needsObjects) {
-            return '';
-        }
-        $items = [];
-        foreach ($this->columns as $col) {
-            if (!is_array($col)) {
-                $items[] = "'" . addslashes($col) . "'";
+
+        $columns = $this->columns;
+
+        foreach ($columns as $i => $column) {
+            if ($column['actions'] === null) {
                 continue;
             }
-            $name = addslashes($col['name'] ?? $col['label'] ?? ($col['field'] ?? 'column'));
-            $formatter = $col['formatter'] ?? null;
-            if (!$formatter && isset($col['format']) && is_array($col['format'])) {
-                $formatter = $this->resolveFormatToFormatter($col['format']);
+            $key = $column['key'];
+            if (is_string($key)) {
+                $index = array_search($key, array_column($columns, 'field'), true);
+                if ($index === false) {
+                    $columns[] = $this->normalizeColumn(['field' => $key, 'hidden' => true, 'sortable' => false, 'searchable' => false]);
+                    $index = count($columns) - 1;
+                }
+                $key = $index;
             }
-            if (is_string($formatter)) {
-                $items[] = "{name: '{$name}', formatter: {$formatter}}";
-            } else {
-                $items[] = "{name: '{$name}'}";
+            $columns[$i]['key'] = (int) $key;
+        }
+
+        $compiled = [];
+        $spec = ['columns' => []];
+        $formatters = [];
+        foreach ($columns as $i => $c) {
+            $plain = $c['field'] !== null && ! str_contains($c['field'], '.');
+            $sortable = $c['field'] !== null && ($c['sortable'] ?? ($plain && $this->listed($this->sortable, $c['field'])));
+            if ($sortable && ! $plain) {
+                throw new InvalidArgumentException("Column [{$c['field']}] is a relation column and cannot be sorted on the server.");
+            }
+            if ($c['sortable'] === true && $this->sortable === false) {
+                $this->sortable = [];
+            }
+            $searchable = $c['field'] !== null && ($c['searchable'] ?? $this->listed($this->searchable, $c['field']));
+            if ($c['searchable'] === true && $this->searchable === false) {
+                $this->searchable = [];
+            }
+
+            $compiled[] = ['field' => $c['field'], 'sortable' => $sortable, 'searchable' => $searchable];
+            $spec['columns'][] = array_filter([
+                'field' => $c['field'],
+                'name' => $c['name'],
+                'sortable' => $sortable,
+                'width' => $c['width'],
+                'hidden' => $c['hidden'],
+                'format' => $c['format'],
+                'actions' => $c['actions'],
+                'keyIndex' => $c['actions'] !== null ? $c['key'] : null,
+            ], fn ($v) => $v !== null && $v !== false);
+            if ($c['formatter'] !== null) {
+                $formatters[$i] = $c['formatter'];
             }
         }
-        $arrayJs = '[' . implode(',', $items) . ']';
-        return "baseConfig.columns = {$arrayJs};";
+
+        $spec['search'] = $this->searchable !== false ? ['debounce' => $this->searchDebounce] : false;
+        $spec['sort'] = $this->sortable !== false;
+        $spec['pagination'] = $this->perPage !== null ? ['limit' => $this->perPage] : false;
+
+        $options = array_merge($this->options, array_filter([
+            'resizable' => $this->resizable ?: null,
+            'fixedHeader' => $this->fixedHeader ?: null,
+            'height' => $this->height,
+            'width' => $this->width,
+            'className' => $this->className,
+            'language' => $this->language,
+        ], fn ($v) => $v !== null));
+        unset($options['columns'], $options['server'], $options['search'], $options['sort'], $options['pagination'], $options['data']);
+        $spec['options'] = (object) $options;
+
+        return [$compiled, $spec, $formatters];
     }
 
-    protected function resolveFormatToFormatter(array $format): ?string
+    /**
+     * @param  bool|list<string>  $setting
+     */
+    protected function listed(bool|array $setting, string $field): bool
     {
-        $type = $format['type'] ?? null;
-        if ($type === 'date') {
-            $locale = addslashes($format['locale'] ?? 'en-US');
-            $options = json_encode($format['options'] ?? ['year' => 'numeric', 'month' => 'short', 'day' => '2-digit']);
-            return "cell => { try { const d = new Date(cell); return d.toLocaleDateString('{$locale}', {$options}); } catch(e) { return cell; } }";
-        }
-        if ($type === 'currency') {
-            $locale = addslashes($format['locale'] ?? 'en-US');
-            $currency = addslashes($format['currency'] ?? 'USD');
-            return "cell => { try { return new Intl.NumberFormat('{$locale}', { style: 'currency', currency: '{$currency}' }).format(Number(cell)); } catch(e) { return cell; } }";
-        }
-        if ($type === 'link') {
-            $base = addslashes($format['baseUrl'] ?? '');
-            $target = addslashes($format['target'] ?? '_self');
-            if ($base !== '') {
-                return "cell => gridjs.html('<a href=\"{$base}/' + cell + '\" target=\"{$target}\">' + cell + '</a>')";
-            }
-            return "cell => gridjs.html('<a href=\"' + cell + '\" target=\"{$target}\">' + cell + '</a>')";
-        }
-        return null;
+        return is_array($setting) ? in_array($field, $setting, true) : $setting;
     }
 
-    public function actions(array $buttons, int $idIndex = 0): self
+    /**
+     * @param  string|array<string, mixed>  $column
+     * @return array{field: ?string, name: string, sortable: ?bool, searchable: ?bool, width: ?string, hidden: bool, formatter: ?string, format: ?array<string, mixed>, actions: null, key: null}
+     */
+    protected function normalizeColumn(string|array $column): array
     {
-        $parts = [];
-        foreach ($buttons as $btn) {
-            $label = addslashes($btn['label'] ?? 'Action');
-            $base = addslashes($btn['baseUrl'] ?? '#');
-            $class = addslashes($btn['class'] ?? 'btn btn-xs');
-            $parts[] = "'<a href=\"" . $base . "/' + row.cells[" . $idIndex . "].data + '\" class=\"" . $class . "\">" . $label . "</a>'";
+        if (is_string($column)) {
+            $column = ['field' => $column];
         }
-        $joined = implode(' + \" \" + ', $parts);
-        $formatter = "(_cell, row) => gridjs.html(" . $joined . ")";
-        $this->columns[] = ['name' => 'Actions', 'formatter' => $formatter];
-        return $this;
+
+        $field = $column['field'] ?? null;
+        if ($field !== null && ! preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', (string) $field)) {
+            throw new InvalidArgumentException("Invalid grid column field [{$field}].");
+        }
+        $field = $field === null ? null : (string) $field;
+        $name = $column['name'] ?? $column['label'] ?? ($field !== null ? Str::headline(str_replace('.', ' ', $field)) : '');
+
+        return [
+            'field' => $field,
+            'name' => (string) $name,
+            'sortable' => isset($column['sortable']) ? (bool) $column['sortable'] : null,
+            'searchable' => isset($column['searchable']) ? (bool) $column['searchable'] : null,
+            'width' => isset($column['width']) ? (string) $column['width'] : null,
+            'hidden' => (bool) ($column['hidden'] ?? false),
+            'formatter' => isset($column['formatter']) ? (string) $column['formatter'] : null,
+            'format' => isset($column['format']) && is_array($column['format']) ? $column['format'] : null,
+            'actions' => null,
+            'key' => null,
+        ];
     }
 }

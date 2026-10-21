@@ -2,50 +2,41 @@
 
 namespace AmjadIqbal\GridJS\Console;
 
+use AmjadIqbal\GridJS\GridServiceProvider;
 use Illuminate\Console\Command;
+use Illuminate\Filesystem\Filesystem;
 
+/**
+ * Copies the Grid.js build bundled with the package into your public folder. No download:
+ * the files ship in the package, so this works offline and always matches the pinned version.
+ */
 class PublishAssetsCommand extends Command
 {
-    protected $signature = 'gridjs:publish-assets {--path=public/vendor/gridjs}';
-    protected $description = 'Download Grid.js UMD and theme CSS to a local public path';
+    protected $signature = 'gridjs:publish-assets
+        {--path=public/vendor/gridjs : Destination folder, relative to the project root}
+        {--force : Overwrite existing files}';
 
-    public function handle()
+    protected $description = 'Copy the bundled Grid.js script and theme into public/vendor/gridjs';
+
+    public function handle(Filesystem $files): int
     {
-        $path = $this->option('path');
-        if (!is_dir($path)) {
-            mkdir($path, 0755, true);
-        }
+        $path = (string) $this->option('path');
+        $target = str_starts_with($path, '/') ? $path : base_path($path);
+        $files->ensureDirectoryExists($target);
 
-        $scriptUrl = (string) config('gridjs.assets.script');
-        $localScript = (string) config('gridjs.assets.local.script', 'gridjs.umd.js');
-        $themes = (array) config('gridjs.assets.themes', []);
-        $localThemes = (array) config('gridjs.assets.local.themes', []);
+        foreach (['gridjs.umd.js', 'mermaid.min.css', 'LICENSE-gridjs'] as $file) {
+            $destination = $target.'/'.$file;
+            if ($files->exists($destination) && ! $this->option('force')) {
+                $this->components->twoColumnDetail($file, 'exists, skipped (use --force)');
 
-        if ($scriptUrl) {
-            $data = @file_get_contents($scriptUrl);
-            if ($data !== false) {
-                file_put_contents($path . '/' . $localScript, $data);
-                $this->info('Downloaded ' . $localScript);
-            } else {
-                $this->error('Failed to download script from ' . $scriptUrl);
+                continue;
             }
+            $files->copy(__DIR__.'/../../resources/dist/'.$file, $destination);
+            $this->components->twoColumnDetail($file, 'copied');
         }
 
-        foreach (['mermaid', 'skeleton'] as $key) {
-            $url = $themes[$key] ?? null;
-            $file = $localThemes[$key] ?? ($key . '.min.css');
-            if ($url) {
-                $data = @file_get_contents($url);
-                if ($data !== false) {
-                    file_put_contents($path . '/' . $file, $data);
-                    $this->info('Downloaded ' . $file);
-                } else {
-                    $this->error('Failed to download theme from ' . $url);
-                }
-            }
-        }
+        $this->components->info('Grid.js '.GridServiceProvider::GRIDJS_VERSION.' published to '.$path.'. Set GRIDJS_CDN=false to serve it.');
 
-        $this->info('Grid.js assets published to ' . $path);
         return self::SUCCESS;
     }
 }

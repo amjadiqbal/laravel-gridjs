@@ -1,5 +1,16 @@
-/tests export-ignore
-/pest.php export-ignore
-/phpunit.xml export-ignore
-README.md
-assets/**
+* text=auto
+
+/tests             export-ignore
+/docs              export-ignore
+/.github           export-ignore
+/art               export-ignore
+/assets            export-ignore
+/scripts           export-ignore
+.editorconfig      export-ignore
+.gitattributes     export-ignore
+.gitignore         export-ignore
+phpunit.xml.dist   export-ignore
+phpstan.neon.dist  export-ignore
+pint.json          export-ignore
+
+/resources/dist/*  -text linguist-vendored

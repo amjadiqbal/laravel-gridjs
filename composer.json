@@ -1,61 +1,82 @@
 {
-  "name": "amjadiqbal/laravel-gridjs",
-  "description": "The modern, dependency-free Datagrid for Laravel. A powerful Grid.js wrapper with Eloquent support, server-side pagination, and an elegant fluent API.",
-  "type": "library",
-  "license": "MIT",
-  "keywords": [
-    "laravel",
-    "gridjs",
-    "datagrid",
-    "eloquent",
-    "pagination",
-    "search",
-    "sortable"
-  ],
-  "homepage": "https://github.com/amjadiqbal/laravel-gridjs",
-  "authors": [
-    {
-      "name": "Amjad Iqbal"
-    }
-  ],
-  "require": {
-    "php": ">=8.1",
-    "illuminate/support": "^10.0|^11.0",
-    "illuminate/database": "^10.0|^11.0",
-    "illuminate/routing": "^10.0|^11.0",
-    "illuminate/http": "^10.0|^11.0"
-  },
-  "require-dev": {
-    "orchestra/testbench": "^8.0|^9.0",
-    "pestphp/pest": "^2.0",
-    "phpunit/phpunit": "^10.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "AmjadIqbal\\GridJS\\": "src/"
-    }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "AmjadIqbal\\GridJS\\Tests\\": "tests/"
-    }
-  },
-  "extra": {
-    "laravel": {
-      "providers": [
-        "AmjadIqbal\\GridJS\\GridServiceProvider"
-      ],
-      "aliases": {
-        "Grid": "AmjadIqbal\\GridJS\\Facades\\Grid"
-      }
-    }
-  },
-  "scripts": {
-    "test": "vendor/bin/pest"
-  },
-  "config": {
-    "allow-plugins": {
-      "pestphp/pest-plugin": true
-    }
-  }
+    "name": "amjadiqbal/laravel-gridjs",
+    "description": "Grid.js datagrid for Laravel: turn any Eloquent query into a searchable, sortable, paginated data table with server-side processing, a fluent PHP API and no jQuery.",
+    "keywords": [
+        "laravel",
+        "laravel-package",
+        "gridjs",
+        "grid.js",
+        "datagrid",
+        "data-table",
+        "datatables-alternative",
+        "eloquent",
+        "server-side",
+        "pagination",
+        "search",
+        "sortable",
+        "table"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/amjadiqbal/laravel-gridjs",
+    "authors": [
+        {
+            "name": "Amjad Iqbal",
+            "homepage": "https://amjad.com.pk",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/amjadiqbal/laravel-gridjs/issues",
+        "source": "https://github.com/amjadiqbal/laravel-gridjs",
+        "docs": "https://github.com/amjadiqbal/laravel-gridjs#readme"
+    },
+    "require": {
+        "php": "^8.3",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/routing": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/view": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.20",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AmjadIqbal\\GridJS\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AmjadIqbal\\GridJS\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AmjadIqbal\\GridJS\\GridServiceProvider"
+            ],
+            "aliases": {
+                "Grid": "AmjadIqbal\\GridJS\\Facades\\Grid"
+            }
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "lint": "vendor/bin/pint --test",
+        "analyse": "vendor/bin/phpstan analyse --memory-limit=1G"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

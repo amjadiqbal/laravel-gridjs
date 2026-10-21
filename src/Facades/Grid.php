@@ -2,20 +2,22 @@
 
 namespace AmjadIqbal\GridJS\Facades;
 
-use Illuminate\Support\Facades\Facade;
-use Illuminate\Database\Eloquent\Builder;
 use AmjadIqbal\GridJS\GridBuilder;
-use Illuminate\Support\Facades\App;
+use AmjadIqbal\GridJS\GridManager;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Facade;
+use Illuminate\Support\HtmlString;
 
+/**
+ * @method static GridBuilder fromQuery(Builder<\Illuminate\Database\Eloquent\Model> $query)
+ * @method static HtmlString assets(string|false|null $theme = null)
+ *
+ * @see GridManager
+ */
 class Grid extends Facade
 {
-    protected static function getFacadeAccessor()
+    protected static function getFacadeAccessor(): string
     {
         return 'gridjs';
-    }
-
-    public static function fromQuery(Builder $query): GridBuilder
-    {
-        return App::make('gridjs')->fromQuery($query);
     }
 }
