@@ -1,6 +1,7 @@
 <?php
 
 use AmjadIqbal\GridJS\Facades\Grid;
+use AmjadIqbal\GridJS\GridServiceProvider;
 use AmjadIqbal\GridJS\Tests\Support\Team;
 use AmjadIqbal\GridJS\Tests\Support\User;
 use Illuminate\Support\Facades\Crypt;
@@ -85,4 +86,15 @@ it('applies the configured middleware and prefix', function () {
     $route = app('router')->getRoutes()->getByName('gridjs.data');
 
     expect($route->uri())->toBe('gridjs/data')->and($route->middleware())->toContain('web');
+});
+
+it('keeps grid data behind auth when the middleware asks for it', function () {
+    config(['gridjs.middleware' => ['web', 'auth']]);
+    (new GridServiceProvider(app()))->boot();
+    app('router')->getRoutes()->refreshNameLookups();
+    app('router')->getRoutes()->refreshActionLookups();
+
+    $grid = Grid::fromQuery(User::query())->columns(['name']);
+
+    $this->getJson(route('gridjs.data', ['grid' => $grid->token()]))->assertUnauthorized();
 });

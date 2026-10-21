@@ -1,43 +1,67 @@
 <p align="center">
-  <img src="assets/laravel-grid.png" alt="Laravel Grid.js Banner" width="100%" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="art/banner-dark.png">
+    <img alt="Laravel Grid.js: server-side datagrids for Eloquent" src="art/banner-light.png" width="100%">
+  </picture>
 </p>
+
+# Laravel Grid.js: server-side datagrid and data table for Eloquent
+
+Turn any Eloquent query into a searchable, sortable, paginated [Grid.js](https://gridjs.io) data table
+with one fluent PHP call. Search, sort and pagination run on the server, so a table of a million rows
+loads one page at a time. A lightweight DataTables alternative: no jQuery, no npm build step.
+
+[![Latest Version](https://img.shields.io/packagist/v/amjadiqbal/laravel-gridjs.svg?style=flat-square)](https://packagist.org/packages/amjadiqbal/laravel-gridjs)
+[![PHP Version](https://img.shields.io/packagist/php-v/amjadiqbal/laravel-gridjs?style=flat-square)](https://packagist.org/packages/amjadiqbal/laravel-gridjs)
+[![License](https://img.shields.io/packagist/l/amjadiqbal/laravel-gridjs.svg?style=flat-square)](LICENSE.md)
 
 <p align="center">
-  <a href="https://packagist.org/packages/amjadiqbal/laravel-gridjs"><img alt="Packagist" src="https://img.shields.io/packagist/v/amjadiqbal/laravel-gridjs.svg?color=007ec6"></a>
-  <a href="https://packagist.org/packages/amjadiqbal/laravel-gridjs"><img alt="Downloads" src="https://img.shields.io/packagist/dt/amjadiqbal/laravel-gridjs.svg?color=43a047"></a>
-  <a href="https://github.com/amjadiqbal/laravel-gridjs/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/amjadiqbal/laravel-gridjs/tests.yml?label=tests&color=0d47a1"></a>
-  <a href="https://github.com/amjadiqbal/laravel-gridjs"><img alt="License" src="https://img.shields.io/badge/license-MIT-4caf50.svg"></a>
-  <a href="https://github.com/amjadiqbal/laravel-gridjs"><img alt="Stars" src="https://img.shields.io/github/stars/amjadiqbal/laravel-gridjs?color=ffb300&style=social"></a>
-  <a href="https://github.com/amjadiqbal/laravel-gridjs"><img alt="Forks" src="https://img.shields.io/github/forks/amjadiqbal/laravel-gridjs?color=9e9d24&style=social"></a>
-  <a href="https://php.net"><img alt="PHP Version" src="https://img.shields.io/badge/PHP-%3E%3D8.1-777bb3.svg"></a>
-  <a href="https://laravel.com"><img alt="Laravel" src="https://img.shields.io/badge/Laravel-10%20%7C%2011-ff2d20.svg"></a>
-  <a href="https://codecov.io/gh/amjadiqbal/laravel-gridjs"><img alt="Coverage" src="https://img.shields.io/codecov/c/github/amjadiqbal/laravel-gridjs?color=1e88e5"></a>
-  <a href="https://github.com/amjadiqbal/laravel-gridjs/issues"><img alt="Open Issues" src="https://img.shields.io/github/issues/amjadiqbal/laravel-gridjs.svg?color=d81b60"></a>
-  <a href="https://github.com/amjadiqbal/laravel-gridjs/pulls"><img alt="PRs" src="https://img.shields.io/github/issues-pr/amjadiqbal/laravel-gridjs.svg?color=8e24aa"></a>
+  <img alt="A Laravel page with a Grid.js customers table: search box, sortable columns, team names from a relation, currency and date formatting, Edit links and 'Showing 1 to 8 of 108 results' pagination" src="art/screenshot.png" width="100%">
 </p>
 
-# Laravel Grid.js
+```php
+use AmjadIqbal\GridJS\Facades\Grid;
 
-The modern, dependency-free Datagrid for Laravel. A powerful Grid.js wrapper with Eloquent support, server-side pagination, and an elegant fluent API.
+$customers = Grid::fromQuery(Customer::active()->with('team')->latest('signed_up_at'))
+    ->columns([
+        'name',
+        'email',
+        ['field' => 'team.name', 'name' => 'Team'],
+        ['field' => 'mrr', 'name' => 'MRR', 'format' => ['type' => 'currency', 'currency' => 'USD']],
+        ['field' => 'signed_up_at', 'name' => 'Signed up', 'format' => ['type' => 'date']],
+    ])
+    ->searchable()
+    ->sortable()
+    ->pagination(10)
+    ->actions([['label' => 'Edit', 'url' => '/customers/{id}/edit']]);
 
-## Table of Contents
-- Why Grid.js?
-- Installation
-- Quick Start
-- Visual Examples
-- Server-side JSON Schema
-- Fluent API Reference
-- Configuration
-- Development
-- Changelog
-- Contributing
+return view('customers.index', ['customers' => $customers]);
+```
 
-## Why Grid.js?
-- No jQuery
-- Tiny footprint (Grid.js UMD)
-- Native Laravel integration (Eloquent + routes)
-- Fluent, chainable API
-- Server-side ready (search, sort, paginate)
+```blade
+{{ $customers }}
+```
+
+That is the whole integration. No route to write, no controller, no JavaScript.
+
+## Why this package
+
+- **Your query, kept.** Where clauses, scopes, joins, eager loads and the default order of the query you
+  pass in are exactly what the table shows. `Customer::active()` shows only active customers.
+- **Server-side everything.** Grid.js asks for one page at a time; search (`LIKE` across the searchable
+  columns, relation columns included), sort and `LIMIT/OFFSET` run in your database with the real total.
+- **Secure by design.** The data endpoint never takes a model or column name from the browser. Each
+  grid carries an encrypted token describing its query and columns, so the endpoint can only return what
+  you rendered. Put it behind `auth` with one config line.
+- **Safe output.** Cell values are escaped; built-in link and action formatters escape values and refuse
+  `javascript:` URLs.
+- **Grid.js 6.2.0, pinned.** Loaded from jsDelivr with Subresource Integrity, or served from your own
+  `public/` folder with the copy bundled in the package.
+
+## Requirements
+
+- PHP 8.3, 8.4 or 8.5
+- Laravel 12 or 13
 
 ## Installation
 
@@ -45,226 +69,200 @@ The modern, dependency-free Datagrid for Laravel. A powerful Grid.js wrapper wit
 composer require amjadiqbal/laravel-gridjs
 ```
 
-### Installation Wizard (Interactive)
-- Run the installer to set defaults and optionally publish assets:
+That's it: the service provider, the `Grid` facade and the data route register themselves. Optionally:
 
 ```bash
-php artisan gridjs:install
+php artisan gridjs:install            # publish config/gridjs.php, choose CDN or local assets
+php artisan gridjs:publish-assets     # copy Grid.js into public/vendor/gridjs (then GRIDJS_CDN=false)
 ```
 
-- Prompts:
-  - Route prefix (default: gridjs)
-  - Use CDN or local assets
-  - Publish local assets and path
-  - Open contact page in browser
+## Usage
 
-- Non-interactive usage:
-
-```bash
-php artisan gridjs:install \
-  --prefix=datagrid \
-  --cdn=false \
-  --publish-assets=true \
-  --assets-path=public/vendor/gridjs \
-  --open-link=false \
-  --contact-url=https://github.com/amjadiqbal/laravel-gridjs/issues
-```
-
-### Publish Assets Locally
-
-```bash
-php artisan gridjs:publish-assets --path=public/vendor/gridjs
-```
-
-## Quick Start
+### Columns
 
 ```php
-use AmjadIqbal\GridJS\Facades\Grid;
-use App\Models\User;
-
-echo Grid::fromQuery(User::query())
-    ->columns(['id', 'name', 'email'])
-    ->searchable()
-    ->sortable()
-    ->pagination(10)
-    ->theme('mermaid')
-    ->render();
+->columns([
+    'name',                                                  // heading "Name"
+    'created_at',                                            // heading "Created At"
+    'team.name',                                             // a relation column
+    ['field' => 'email', 'name' => 'E-mail', 'width' => '240px'],
+    ['field' => 'full_name', 'searchable' => false, 'sortable' => false], // an accessor
+    ['field' => 'internal_ref', 'hidden' => true],
+])
 ```
 
-## Visual Examples
+Per column: `field`, `name`, `width`, `hidden`, `searchable`, `sortable`, `format` and `formatter`.
+Accessors and casts work in cells; they can't be searched or sorted in SQL, so switch those off for them.
+Relation columns are searchable (through `whereHas`) but not sortable.
 
-### Minimal Users Table
+### Search, sort and pagination
 
 ```php
-use AmjadIqbal\GridJS\Facades\Grid;
-use App\Models\User;
-
-echo Grid::fromQuery(User::query())
-    ->columns(['id', 'name', 'email'])
-    ->pagination(15)
-    ->render();
+->searchable()                       // every data column
+->searchable(['name', 'email'], 200) // only these, 200 ms debounce
+->sortable()                         // every plain column
+->sortable(['name', 'created_at'])   // only these
+->pagination(25)                     // 25 per page (default: config gridjs.per_page)
 ```
 
-### Skeleton Theme + Fixed Header + Resizable
+The browser can only pick a page, a keyword and one of the sortable fields. Anything else is ignored.
+A grid without `pagination()` returns at most `gridjs.max_rows` rows (1000).
+
+### Formats
 
 ```php
-echo Grid::fromQuery(User::query())
-    ->columns(['id', 'name', 'email'])
-    ->searchable()
-    ->sortable()
-    ->pagination(20)
-    ->resizable()
-    ->fixedHeader()
-    ->theme('skeleton')
-    ->render();
+['field' => 'joined_at', 'format' => ['type' => 'date', 'locale' => 'en-GB']]
+['field' => 'paid_at',   'format' => ['type' => 'datetime']]
+['field' => 'total',     'format' => ['type' => 'currency', 'currency' => 'EUR', 'locale' => 'de-DE']]
+['field' => 'views',     'format' => ['type' => 'number']]
+['field' => 'active',    'format' => ['type' => 'boolean', 'true' => 'Yes', 'false' => 'No']]
+['field' => 'website',   'format' => ['type' => 'link', 'target' => '_blank']]
+['field' => 'slug',      'format' => ['type' => 'link', 'url' => '/posts/{value}']]
 ```
 
-### Custom ClassName Theme
+Or write your own Grid.js formatter in JavaScript (it runs as-is, so never build it from user input):
 
 ```php
-echo Grid::fromQuery(User::query())
-    ->columns(['id', 'name', 'email'])
-    ->theme([
-        'table' => 'w-full border border-slate-200 rounded-md',
-        'thead' => 'bg-slate-50',
-        'th'    => 'px-3 py-2 text-xs text-slate-600',
-        'td'    => 'px-3 py-2 text-sm text-slate-800',
-    ])
-    ->render();
+['field' => 'status', 'formatter' => '(cell) => cell.toUpperCase()']
+['field' => 'avatar', 'formatter' => '(cell) => gridjs.html(`<img src="${LaravelGridJS.escape(cell)}" width="24">`)']
 ```
 
-### Column Formatters
+### Action buttons
 
 ```php
-echo Grid::fromQuery(User::query())
-    ->columns([
-        ['field' => 'id', 'name' => 'ID'],
-        ['field' => 'email', 'name' => 'Email', 'formatter' => 'cell => cell.toUpperCase()'],
-    ])
-    ->render();
+->actions([
+    ['label' => 'View', 'url' => '/customers/{id}'],
+    ['label' => 'Edit', 'url' => '/customers/{id}/edit', 'class' => 'btn btn-sm'],
+    ['label' => 'Open', 'url' => '/c/{id}', 'target' => '_blank'],
+])
+
+->actions([['label' => 'Show', 'url' => '/orders/{id}']], key: 'uuid') // {id} = the uuid field
 ```
 
-### Built-in Format Options
+`{id}` is filled from the `key` field (default `id`), which is added as a hidden column if you don't show it.
+
+### Look and layout
 
 ```php
-// Date
-echo Grid::fromQuery(User::query())
-    ->columns([
-        ['field' => 'created_at', 'name' => 'Joined', 'format' => ['type' => 'date', 'locale' => 'en-US']],
-    ])
-    ->render();
-
-// Currency
-echo Grid::fromQuery(User::query())
-    ->columns([
-        ['field' => 'balance', 'name' => 'Balance', 'format' => ['type' => 'currency', 'currency' => 'USD']],
-    ])
-    ->render();
-
-// Link
-echo Grid::fromQuery(User::query())
-    ->columns([
-        ['field' => 'email', 'name' => 'Email', 'format' => ['type' => 'link']],
-    ])
-    ->render();
+->theme('mermaid')               // Grid.js's own theme (the default)
+->theme(null)                    // unstyled
+->className([                    // Tailwind or your own CSS
+    'table' => 'w-full text-sm',
+    'th' => 'px-3 py-2 text-left bg-slate-50',
+    'td' => 'px-3 py-2 border-t',
+])
+->resizable()
+->fixedHeader(height: '400px')
+->width('100%')
+->language(['search' => ['placeholder' => 'Find a customer...']])
+->options(['autoWidth' => false])  // any other Grid.js option
+->id('customers-table')
 ```
 
-### Actions Column
+### Assets
 
-```php
-echo Grid::fromQuery(User::query())
-    ->columns([['field' => 'id', 'name' => 'ID'], 'name', 'email'])
-    ->actions([
-        ['label' => 'View', 'baseUrl' => '/users', 'class' => 'btn btn-sm'],
-        ['label' => 'Edit', 'baseUrl' => '/users/edit', 'class' => 'btn btn-sm btn-warning'],
-    ], idIndex: 0)
-    ->render();
-```
+By default the first grid on a page prints the Grid.js script and theme (jsDelivr, pinned to 6.2.0 with
+integrity hashes) plus a 2 KB mount script. Assets print once per request, however many grids there are.
 
-### Asset Options
-- Configurable CDN injection via `config/gridjs.php`:
+- Prefer your own `public/` folder: `php artisan gridjs:publish-assets` and `GRIDJS_CDN=false`.
+- Prefer them in your layout's `<head>`: add `@gridjsAssets` (or `@gridjsAssets(false)` for no theme).
+- Loading Grid.js yourself (Vite)? Set `gridjs.assets.inject` to `false` and expose `window.gridjs`.
+- Using a Content Security Policy? Call `Vite::useCspNonce()` and the inline scripts get the nonce.
 
-```php
-return [
-  'assets' => [
-    'cdn' => true,
-    'script' => 'https://unpkg.com/gridjs/dist/gridjs.umd.js',
-    'themes' => [
-      'mermaid' => 'https://unpkg.com/gridjs/dist/theme/mermaid.min.css',
-      'skeleton' => 'https://unpkg.com/gridjs/dist/theme/skeleton.min.css',
-    ],
-  ],
-];
-```
+The grid element fires a `gridjs:ready` event with the Grid.js instance in `event.detail.grid`.
 
-### Custom Route Prefix
+### Protecting the data
+
+Every grid fetches from `GET /gridjs/data`. Add `auth` (or any middleware) to keep it behind login:
 
 ```php
 // config/gridjs.php
-return ['prefix' => 'datagrid'];
+'middleware' => ['web', 'auth'],
 ```
 
-## Server-side JSON Schema
-- Endpoint: `GET /{prefix}/data` (default: `/gridjs/data`)
-- Query params:
-  - `model`: FQCN of the Eloquent model
-  - `columns`: comma-separated list of fields
-  - `limit`: page size (int)
-  - `page`: page number (int)
-  - `search`: search string (optional)
-  - `sort`: column name (optional)
-  - `direction`: `asc` or `desc` (optional)
-- Response:
+Tokens are encrypted with your `APP_KEY`, so rotating the key invalidates grids that are already open.
 
-```json
-{
-  "data": [
-    ["1", "Alice", "alice@example.com"],
-    ["2", "Bob", "bob@example.com"]
-  ],
-  "total": 42
-}
+### Testing a grid
+
+```php
+$grid = Grid::fromQuery(Customer::query())->columns(['name'])->pagination(10);
+
+$this->getJson(route('gridjs.data', ['grid' => $grid->token(), 'page' => 2]))
+    ->assertOk()
+    ->assertJsonPath('total', 25);
 ```
-
-## Fluent API Reference
-
-| Method | Params | Returns | Notes |
-|-------|--------|---------|-------|
-| columns | array<string> $columns | self | Defines visible fields and server serialization order |
-| sortable | bool $enabled = true | self | Enables Grid.js sort and maps to server `sort/direction` |
-| searchable | bool $enabled = true | self | Enables Grid.js search and maps to server `search` |
-| pagination | int $limit | self | Enables pagination and sets `limit`; server uses `page` |
-| resizable | bool $enabled = true | self | Enables Grid.js column resizing |
-| fixedHeader | bool $enabled = true | self | Enables Grid.js fixed header rendering |
-| theme | string|array $theme | self | `'mermaid'`, `'skeleton'`, or `className` map |
-| fromQuery | Builder $query | GridBuilder | Binds an Eloquent model to server route |
-| render | — | HtmlString | Returns HTML/JS for Grid.js initialization |
 
 ## Configuration
-- File: `config/gridjs.php`
-- Options:
-  - `prefix`: Route segment for the data endpoint (default: `gridjs`)
-
-## Development
-- Testing:
 
 ```bash
-vendor/bin/pest
+php artisan vendor:publish --tag=gridjs-config
 ```
 
-- Installer:
-  - The installer prints a general contact message:
-    - “If you are facing any issue or need development help, contact me: https://github.com/amjadiqbal/laravel-gridjs/issues”
-  - You can pass a custom contact URL with `--contact-url`
-  - Opening the contact page is optional via `--open-link` or prompt
+| Key | Default | |
+|---|---|---|
+| `prefix` | `gridjs` | URL prefix of the data endpoint (`GRIDJS_PREFIX`) |
+| `middleware` | `['web']` | Middleware on the data endpoint |
+| `per_page` | `10` | Page size for `pagination()` without a number |
+| `max_rows` | `1000` | Cap for grids without pagination |
+| `theme` | `mermaid` | Default theme, or `null` |
+| `assets.inject` | `true` | Print the script and theme before the first grid |
+| `assets.cdn` | `true` | jsDelivr (`true`) or `public/vendor/gridjs` (`GRIDJS_CDN=false`) |
 
-- Local Assets:
-  - Banner stored in `assets/banner.svg` and included in README
+## Upgrading from dev-main
 
-## Changelog
-- See GitHub releases for a full changelog.
+`dev-main` was never tagged. If you used it:
 
-## Contributing
-- Fork and create a feature branch
-- Add tests for your changes
-- Open a PR with a clear description and rationale
+- The data endpoint now takes an encrypted `grid` token instead of `model` and `columns` query
+  parameters. Nothing to change in your code; it was a security hole.
+- The `skeleton` theme is gone (Grid.js 6 has only `mermaid`); use `className([...])`.
+- `actions($buttons, $idIndex)` now takes a field name: `actions($buttons, key: 'id')`. An integer still
+  works, and `baseUrl` buttons still append `/{id}`.
+- Headings default to `Str::headline()` of the field. Pass `name` to keep a raw heading.
+
+## Testing
+
+```bash
+composer test               # Pest
+scripts/ci-local.sh         # PHP 8.3/8.4/8.5 x Laravel 12/13, Pint, PHPStan, Pest
+```
+
+## Need this built into your app, or something custom?
+
+I build admin panels, reporting screens and Laravel packages for teams. If you'd rather have your data
+tables, filters and exports designed and wired up for you, or need something this package doesn't do,
+[get in touch](https://amjad.com.pk/contact?utm_source=github&utm_medium=readme&utm_campaign=laravel-gridjs).
+
+## Support
+
+- 🐛 **Bug or feature request**: [open an issue](https://github.com/amjadiqbal/laravel-gridjs/issues)
+- 💬 **Questions and community**: [join the Discord](https://discord.gg/REPLACE-WITH-INVITE)
+- 🔒 **Security issue**: please report privately via GitHub's security tab
+
+## Need this customised, or something built?
+
+I'm available for custom development, package integration, and technical consulting.
+
+[![Hire me on Upwork](https://img.shields.io/badge/Hire%20me-Upwork-6FDA44?style=flat-square&logo=upwork&logoColor=white)](https://www.upwork.com/freelancers/amjadkhatri)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/REPLACE-WITH-INVITE)
+
+## More packages
+
+Part of a family of open-source packages. See [all of them](https://github.com/amjadiqbal?tab=repositories).
+
+| | |
+|---|---|
+| [laravel-driver-js](https://github.com/amjadiqbal/laravel-driver-js) | Driver.js product tours and onboarding for Laravel |
+| [kiln](https://github.com/amjadiqbal/kiln) | Deploy-time OPcache control for Laravel |
+| [laravel-tiptap](https://github.com/amjadiqbal/laravel-tiptap) | Tiptap editor for Laravel |
+| [laravel-logpulse](https://github.com/amjadiqbal/laravel-logpulse) | Log health monitoring and alerting |
+
+## Credits
+
+- [Grid.js](https://github.com/grid-js/gridjs) by Afshin Mehrabani (MIT), which renders the table in the
+  browser. Its 6.2.0 build is bundled in `resources/dist` under its own licence. This package is an
+  independent wrapper and is not affiliated with Grid.js.
+- [Amjad Iqbal](https://amjad.com.pk)
+
+## License
+
+MIT. See [LICENSE.md](LICENSE.md).
