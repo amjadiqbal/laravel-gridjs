@@ -94,14 +94,29 @@
       return col;
     });
 
+    // Grid.js re-runs its pipeline as each plugin registers, which fires the same request several
+    // times on load. Requests for a URL that is already in flight share one fetch.
+    var inflight = {};
+    function load(opts) {
+      if (!inflight[opts.url]) {
+        inflight[opts.url] = fetch(opts.url, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (res) {
+          if (!res.ok) throw new Error('[laravel-gridjs] ' + res.status + ' ' + res.statusText);
+          return res.json();
+        }).then(function (res) {
+          return { data: res.data, total: res.total };
+        }).finally(function () {
+          delete inflight[opts.url];
+        });
+      }
+      return inflight[opts.url];
+    }
+
     var config = Object.assign({}, spec.options, {
       columns: columns,
-      server: {
-        url: spec.url,
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        then: function (res) { return res.data; },
-        total: function (res) { return res.total; }
-      }
+      server: { url: spec.url, data: load }
     });
 
     if (spec.search) {
