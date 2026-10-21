@@ -11,6 +11,8 @@ Turn any Eloquent query into a searchable, sortable, paginated [Grid.js](https:/
 with one fluent PHP call. Search, sort and pagination run on the server, so a table of a million rows
 loads one page at a time. A lightweight DataTables alternative: no jQuery, no npm build step.
 
+Docs and demo: https://amjad.com.pk/laravel/packages/laravel-gridjs
+
 [![Latest Version](https://img.shields.io/packagist/v/amjadiqbal/laravel-gridjs.svg?style=flat-square)](https://packagist.org/packages/amjadiqbal/laravel-gridjs)
 [![PHP Version](https://img.shields.io/packagist/php-v/amjadiqbal/laravel-gridjs?style=flat-square)](https://packagist.org/packages/amjadiqbal/laravel-gridjs)
 [![License](https://img.shields.io/packagist/l/amjadiqbal/laravel-gridjs.svg?style=flat-square)](LICENSE.md)

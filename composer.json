@@ -18,7 +18,7 @@
     ],
     "type": "library",
     "license": "MIT",
-    "homepage": "https://github.com/amjadiqbal/laravel-gridjs",
+    "homepage": "https://amjad.com.pk/laravel/packages/laravel-gridjs",
     "authors": [
         {
             "name": "Amjad Iqbal",
@@ -29,7 +29,7 @@
     "support": {
         "issues": "https://github.com/amjadiqbal/laravel-gridjs/issues",
         "source": "https://github.com/amjadiqbal/laravel-gridjs",
-        "docs": "https://github.com/amjadiqbal/laravel-gridjs#readme"
+        "docs": "https://amjad.com.pk/laravel/packages/laravel-gridjs"
     },
     "require": {
         "php": "^8.3",
